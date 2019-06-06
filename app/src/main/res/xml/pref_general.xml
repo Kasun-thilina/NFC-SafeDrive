@@ -1,0 +1,26 @@
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+    <PreferenceCategory android:title="General Settings">
+        <EditTextPreference
+            android:defaultValue="@string/default_dialNo"
+            android:key='@string/key_dialNo'
+            android:summary="@string/default_dialNo"
+            android:title='@string/title_dialNo'
+            />
+        <EditTextPreference
+            android:defaultValue="@string/default_sms"
+            android:key='@string/key_name'
+            android:summary='@string/default_sms'
+            android:title="@string/title_name"
+            />
+    </PreferenceCategory>
+    <PreferenceCategory android:title="About">
+        <Preference
+        android:summary="@string/summary_developer"
+        android:title="Developed By" />
+        <Preference
+            android:summary="@string/summary_version"
+            android:title="Version"
+            />
+    </PreferenceCategory>
+
+</PreferenceScreen>

@@ -1,0 +1,32 @@
+<resources>
+    <string name="app_name">NFC SafeDrive</string>
+    <string name="message_write_error">Error Writing Message !</string>
+    <string name="message_write_success">Successfully written to Tag !</string>
+    <string name="message_write_progress">Writing to Tag..</string>
+    <string name="message_tag_detected">NFC Tag Detected !</string>
+    <string name="message_nfc_holder_detected">NFC Phone Holder Identified</string>
+    <string name="message_nfc_holder_detached">NFC Phone Holder Detached</string>
+    <string name="message_nfc_holder_error">Error!Invalid NFC Tag Detected</string>
+    <string name="message_read_tag">Read from NFC Tag</string>
+    <string name="message_write_tag">Write to NFC Tag</string>
+    <string name="message_tap_tag">Tap the NFC Tag to your device !</string>
+    <string name="hint_message">Message</string>
+    <string name="title_activity_settings">Settings</string>
+
+    <!-- Strings related to Settings -->
+    <string name="key_dialNo">key_dialNo</string>
+    <string name="key_name">key_name</string>
+    <string name="title_dialNo">Emergency Contact Number</string>
+    <string name="default_dialNo">9477015833000</string>
+    <string name="title_name">Emergency SMS Message</string>
+    <string name="default_sms">Im in an emergency</string>
+    <string name="summary_developer">Kasun Thilina © Kasun Creations</string>
+    <string name="summary_version">1.0</string>
+
+    <!-- Strings related to GPS -->
+    <string name="msg_driving">Driving Mode Activated</string>
+    <string name="msg_notDriving">Not Driving</string>
+    <string name="errorMsg_GPSDisabled">Location Service is disabled on your Device.Please enable GPS to continue</string>
+    <string name="errorMsg_NFCDisabled">NFC Scanning is disabled on your Device.Please enable NFC to continue</string>
+    <string name="errorMsg_NFCDNotFound">NFC is not available on your device</string>
+</resources>

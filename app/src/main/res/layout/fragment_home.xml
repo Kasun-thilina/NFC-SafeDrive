@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="utf-8"?>
+<android.support.constraint.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+
+    <pl.droidsonroids.gif.GifImageView
+        android:id="@+id/gifScanner"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:src="@drawable/sc2"
+        android:visibility="visible"
+        android:layout_marginBottom="90dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <TextView
+        android:id="@+id/txtSpeed"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="8dp"
+        android:text="Speed :"
+        android:textSize="30sp"
+        app:layout_constraintBottom_toTopOf="@+id/txtDriving"
+        app:layout_constraintEnd_toStartOf="@+id/valSpeed"
+        app:layout_constraintHorizontal_chainStyle="packed"
+        app:layout_constraintStart_toStartOf="parent" />
+
+    <TextView
+        android:id="@+id/valSpeed"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="21dp"
+        android:layout_toRightOf="@+id/txtSpeed"
+        android:text=""
+        android:textSize="29sp"
+        app:layout_constraintBottom_toTopOf="@+id/txtDriving"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toEndOf="@+id/txtSpeed"
+        app:layout_constraintTop_toBottomOf="@+id/activeGPS" />
+
+    <TextView
+        android:id="@+id/txtDriving"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="68dp"
+        android:text="Scanning For NFC Holder"
+        android:textAlignment="center"
+        android:textSize="30sp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/valSpeed" />
+
+    <ImageView
+        android:id="@+id/activeNFC"
+        android:layout_width="200dp"
+        android:layout_height="0dp"
+        android:layout_marginTop="80dp"
+        android:layout_marginBottom="52dp"
+        android:src="@drawable/nfc_logo"
+        android:visibility="invisible"
+        app:layout_constraintBottom_toTopOf="@+id/activeGPS"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <ImageView
+        android:id="@+id/activeGPS"
+        android:layout_width="200dp"
+        android:layout_height="0dp"
+        android:layout_marginBottom="52dp"
+        android:rotation="-44"
+        android:src="@drawable/navigation"
+        android:visibility="invisible"
+        app:layout_constraintBottom_toTopOf="@+id/valSpeed"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/activeNFC" />
+
+    <android.support.constraint.Group
+        android:id="@+id/group"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textAlignment="center"
+        android:visibility="visible"
+        app:constraint_referenced_ids="valSpeed,txtSpeed"
+        app:layout_constraintBottom_toTopOf="parent"
+        app:layout_constraintEnd_toStartOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+</android.support.constraint.ConstraintLayout>
