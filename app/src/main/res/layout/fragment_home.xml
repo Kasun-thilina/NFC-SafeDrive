@@ -20,36 +20,37 @@
 
     <TextView
         android:id="@+id/txtSpeed"
-        android:visibility="invisible"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginEnd="8dp"
-        android:text="Speed :"
+        android:layout_marginBottom="69dp"
+        android:text=""
         android:textSize="30sp"
-        app:layout_constraintBottom_toTopOf="@+id/txtDriving"
+        android:visibility="invisible"
+        app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toStartOf="@+id/valSpeed"
         app:layout_constraintHorizontal_chainStyle="packed"
-        app:layout_constraintStart_toStartOf="parent" />
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/activeGPS" />
 
     <TextView
         android:id="@+id/valSpeed"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginEnd="21dp"
-        android:layout_marginBottom="88dp"
+        android:layout_marginBottom="19dp"
         android:layout_toRightOf="@+id/txtSpeed"
         android:text=""
-        android:textSize="29sp"
-        app:layout_constraintBottom_toBottomOf="parent"
+        android:textSize="28sp"
+        app:layout_constraintBottom_toBottomOf="@+id/txtSpeed"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toEndOf="@+id/txtSpeed"
-        app:layout_constraintTop_toBottomOf="@+id/activeGPS" />
+        app:layout_constraintStart_toEndOf="@+id/txtSpeed" />
 
     <TextView
         android:id="@+id/txtDriving"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="48dp"
+        android:layout_marginBottom="29dp"
         android:text=""
         android:textAlignment="center"
         android:textSize="30sp"
@@ -77,7 +78,7 @@
         android:id="@+id/activeNFC"
         android:layout_width="200dp"
         android:layout_height="0dp"
-        android:layout_marginBottom="29dp"
+        android:layout_marginBottom="52dp"
         android:src="@drawable/nfc_logo"
         android:visibility="invisible"
         app:layout_constraintBottom_toTopOf="@+id/activeGPS"
@@ -89,11 +90,11 @@
         android:id="@+id/activeGPS"
         android:layout_width="200dp"
         android:layout_height="0dp"
-        android:layout_marginBottom="52dp"
+        android:layout_marginBottom="45dp"
         android:rotation="-44"
         android:src="@drawable/navigation"
         android:visibility="invisible"
-        app:layout_constraintBottom_toTopOf="@+id/valSpeed"
+        app:layout_constraintBottom_toTopOf="@+id/txtSpeed"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/activeNFC" />

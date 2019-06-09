@@ -1,4 +1,7 @@
 <resources>
+    //***Value to be written in the NFC Tag**** write it using a NFC Tools.write it as text
+    <string name="nfcTag_Value">in</string>
+    //*****
     <string name="app_name">NFC SafeDrive</string>
     <string name="message_write_error">Error Writing Message !</string>
     <string name="message_write_success">Successfully written to Tag !</string>
@@ -17,7 +20,7 @@
     <string name="key_dialNo">key_dialNo</string>
     <string name="key_smsMessage">key_smsMessage</string>
     <string name="title_dialNo">Emergency Contact Number</string>
-    <string name="default_dialNo">9477015833000</string>
+    <string name="default_dialNo">0770158330</string>
     <string name="title_name">Emergency SMS Message</string>
     <string name="default_sms">Im in an emergency</string>
     <string name="summary_developer">Kasun Thilina © Kasun Creations</string>

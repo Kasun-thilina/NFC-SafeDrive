@@ -9,6 +9,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.graphics.Color;
 import android.location.GpsSatellite;
 import android.location.GpsStatus;
 import android.location.Location;
@@ -43,7 +44,10 @@ import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.telephony.SmsManager;
+import android.text.Html;
 import android.text.SpannableString;
+import android.text.TextUtils;
+import android.text.style.ForegroundColorSpan;
 import android.text.style.RelativeSizeSpan;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -75,18 +79,17 @@ public class MainActivity extends AppCompatActivity implements BottomNavigationV
 {
     public static final String TAG = MainActivity.class.getSimpleName();
     private NfcAdapter mNfcAdapter;
-    private boolean isEmergency=true;
-    private boolean isDialogshowing=false;
-    private boolean isDriving=false;
-    private boolean tagDetach=false;
-    private boolean isCorrect=false;
+    private boolean isEmergency=true; //Boolean variable used to activate emergency mode on specific scenarios
+    private boolean isDialogshowing=false; //Boolean variable used to dismiss the emergency mode timer in specific scenarios
+    private boolean isDriving=false;//Boolean variable used to detect when the driving mode is active (speed > 10)
+    private boolean tagDetach=false;//Boolean variable used to detect the tag detach scenarios
+    private boolean isCorrect=false;//Boolean variable used to detect the correct NFC tag with the specific code in it
     private String longitude="0.0",latitude="0.0";
     Dialog dialog;
     private GifImageView gifScanning;
     private ImageView nfcIcon;
     private ImageView gpsIcon;
-    TextView txtSearching,txtSpeed,txtDriving;
-
+    TextView txtSearching,txtSpeed;
     /**
      * For GPS
      */
@@ -99,7 +102,7 @@ public class MainActivity extends AppCompatActivity implements BottomNavigationV
     TextView drivingMode;
     private Data.OnGpsServiceUpdate onGpsServiceUpdate;
     private boolean firstfix;
-    /**END*/
+    /**For Speech recognition*/
     private SpeechRecognizer speech = null;
     private Intent recognizerIntent;
 
@@ -125,9 +128,16 @@ public class MainActivity extends AppCompatActivity implements BottomNavigationV
          * Begining of Speech recognition service
          * */
         // start speech recogniser
-        resetSpeechRecognizer();
-        setRecogniserIntent();
-        speech.startListening(recognizerIntent);
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED)
+        {
+            ActivityCompat.requestPermissions(this,
+                    new String[]{Manifest.permission.RECORD_AUDIO},1);
+        }
+        reqPermission();
+            resetSpeechRecognizer();
+            setRecogniserIntent();
+            speech.startListening(recognizerIntent);
+
     }
     /**
      *Bottom Navigation Bar
@@ -141,7 +151,7 @@ public class MainActivity extends AppCompatActivity implements BottomNavigationV
         }
         return false;
     }
-
+    /**Changing the Fragment on user choice*/
     @Override
     public boolean onNavigationItemSelected(@NonNull MenuItem menuItem) {
         android.app.Fragment fragment=null;
@@ -165,14 +175,11 @@ public class MainActivity extends AppCompatActivity implements BottomNavigationV
      * NFC Reader Initialization
      */
     private void initNFC(){
-
         mNfcAdapter = NfcAdapter.getDefaultAdapter(this);
-
     }
     /**
      * Detecting NFC tag and returning to the home screen at any time
      */
-
     @Override
     protected void onNewIntent(Intent intent) {
         BottomNavigationView navigation = findViewById(R.id.navigation);
@@ -184,7 +191,6 @@ public class MainActivity extends AppCompatActivity implements BottomNavigationV
             Toast.makeText(this, getString(R.string.message_tag_detected), Toast.LENGTH_SHORT).show();
             final Ndef ndef = Ndef.get(tag);
             onNfcDetected(ndef);
-
         }
     }
 
@@ -196,12 +202,10 @@ public class MainActivity extends AppCompatActivity implements BottomNavigationV
         IntentFilter ndefDetected = new IntentFilter(NfcAdapter.ACTION_NDEF_DISCOVERED);
         IntentFilter techDetected = new IntentFilter(NfcAdapter.ACTION_TECH_DISCOVERED);
         IntentFilter[] nfcIntentFilter = new IntentFilter[]{techDetected,tagDetected,ndefDetected};
-
         PendingIntent pendingIntent = PendingIntent.getActivity(
                 this, 0, new Intent(this, getClass()).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP), 0);
         if(mNfcAdapter!= null)
             mNfcAdapter.enableForegroundDispatch(this, pendingIntent, nfcIntentFilter, null);
-
         /**
          * GPS
          */
@@ -221,44 +225,44 @@ public class MainActivity extends AppCompatActivity implements BottomNavigationV
             ActivityCompat.requestPermissions(this,
                     new String[]{Manifest.permission.ACCESS_FINE_LOCATION},1);
         }
-        if (mLocationManager.getAllProviders().indexOf(LocationManager.GPS_PROVIDER) >= 0) {
-            mLocationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 500, 0, this);
-        } else {
-            Log.w("MainActivity", "No GPS location provider found. GPS data display will not be available.");
-        }
-
-        if (!mLocationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
-            showErrorDialog("gps");
-        }
-        try {mNfcAdapter.isEnabled();
-            if (!mNfcAdapter.isEnabled()) {
-                showErrorDialog("nfc");
+        else {
+            if (mLocationManager.getAllProviders().indexOf(LocationManager.GPS_PROVIDER) >= 0) {
+                mLocationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 500, 0, this);
+            } else {
+                Log.w("MainActivity", "No GPS location provider found. GPS data display will not be available.");
             }
+
+            if (!mLocationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
+                showErrorDialog("gps");
+            }
+            try {
+                mNfcAdapter.isEnabled();
+                if (!mNfcAdapter.isEnabled()) {
+                    showErrorDialog("nfc");
+                }
+            } catch (NullPointerException e) {
+                showErrorDialog("nonfc");
+            }
+            mLocationManager.addGpsStatusListener(this);
         }
-        catch (NullPointerException e)
-        {
-            showErrorDialog("nonfc");
-        }
-        mLocationManager.addGpsStatusListener(this);
         /***/
         /**
-         * Speech recognition
+         * Speech recognition , Starting the Speech service again onResume of the app
          */
         if (recognizerIntent!=null) {
             resetSpeechRecognizer();
             speech.startListening(recognizerIntent);
         }
     }
+    /**This Method envokes when a NFC tag is detected by the device*/
     public void onNfcDetected(Ndef ndef){
-       // readFromNFC(ndef);
+        reqPermission();
         new ProcessNFCTask().execute(ndef);
     }
+    /**This Method envoke on device GPS location change*/
     @Override
     public void onLocationChanged(Location location) {
         if (location.hasSpeed()) {
-            /*double speed=location.getSpeed() * 3.6;;
-            while (1==1)
-            {*/
             speed = location.getSpeed() * 3.6;
             longitude=Double.toString(location.getLongitude());
             latitude=Double.toString(location.getLatitude());
@@ -266,27 +270,40 @@ public class MainActivity extends AppCompatActivity implements BottomNavigationV
             s= new SpannableString(String.format(Locale.ENGLISH, "%.0f %s", speed, units));
             s.setSpan(new RelativeSizeSpan(0.45f), s.length()-units.length()-1, s.length(), 0);
             updateUI();
-
         }
     }
+    /**This Method is Updating the Speed value and driving mode values when needed */
     private void updateUI(){
         txtSpeed=findViewById(R.id.txtSpeed);
         drivingMode=findViewById(R.id.txtDriving);
         currentSpeed = findViewById(R.id.valSpeed);
        // Log.d(TAG, "activeNFC: "+correctTAG);
           if (currentSpeed!=null) {
-            currentSpeed.setText(s);
-            if (speed > 10) {
-                txtSpeed.setVisibility(View.VISIBLE);
+              String valSpeed=s.toString();
+              String strSpeed="Speed: ";
+              SpannableString speedValue=  new SpannableString(valSpeed);
+              SpannableString speedText=  new SpannableString(strSpeed);
+              speedText.setSpan(new RelativeSizeSpan(1.35f), 0,5, 0); // set size
+              if (speed > 10) {
+                speedValue.setSpan(new ForegroundColorSpan(Color.parseColor("#00bfa5")),0,7,0);// set color
+                //txtSpeed.setText();
+                if (!(gifScanning.getVisibility()==View.VISIBLE)) {
+                    gpsIcon.setVisibility(View.VISIBLE);
+                }
                 drivingMode.setText(R.string.msg_driving);
+                drivingMode.setTextColor(Color.parseColor("#4caf50"));
                 isDriving = true;
             } else {
-                txtSpeed.setVisibility(View.INVISIBLE);
+                speedValue.setSpan(new ForegroundColorSpan(Color.parseColor("#ef5350")),0,6,0);// set color
                 drivingMode.setText(R.string.msg_notDriving);
+                  drivingMode.setTextColor(Color.parseColor("#a5d6a7"));
+                gpsIcon.setVisibility(View.INVISIBLE);
                 isDriving=false;
             }
+              currentSpeed.setText(TextUtils.concat(speedText,speedValue));
         }
     }
+    /**This Method set the GPS Scanner animation and NFC detected , Navigation Mode icons*/
     private void uiTransitions(boolean isfound){
         txtSearching = findViewById(R.id.txtScanningForNFC );
         Animation anim = new AlphaAnimation(0.0f, 1.0f);
@@ -295,9 +312,9 @@ public class MainActivity extends AppCompatActivity implements BottomNavigationV
         anim.setRepeatMode(Animation.REVERSE);
         anim.setRepeatCount(Animation.INFINITE);
         txtSearching.startAnimation(anim);
-       gifScanning=findViewById(R.id.gifScanner);
-       nfcIcon=findViewById(R.id.activeNFC);
-       gpsIcon=findViewById(R.id.activeGPS);
+        gifScanning=findViewById(R.id.gifScanner);
+        nfcIcon=findViewById(R.id.activeNFC);
+        gpsIcon=findViewById(R.id.activeGPS);
         if (isfound) {
             gifScanning.setVisibility(View.INVISIBLE);
             nfcIcon.setVisibility(View.VISIBLE);
@@ -322,6 +339,7 @@ public class MainActivity extends AppCompatActivity implements BottomNavigationV
 
 
     }
+    /** Async Task(Runs in background thread) to detect the correct NFC tag and read it in a indefinite loop */
     public class ProcessNFCTask extends AsyncTask<Ndef, NdefMessage, Void> {
         @Override
         protected void onPreExecute() {
@@ -339,16 +357,15 @@ public class MainActivity extends AppCompatActivity implements BottomNavigationV
                 NdefMessage ndefMessage = ndef.getNdefMessage();
                 ndef.close();
                 String message = new String(ndefMessage.getRecords()[0].getPayload());
-                // Log.d(TAG, "readFromNFC Before Pass: " + message);
+                Log.d(TAG, "readFromNFC Before Pass: " + message);
                 //Toast.makeText(this, "Text" + message, Toast.LENGTH_LONG).show();
 
-                if (message.equals("in")) {
+                if (message.equals(R.string.nfcTag_Value)) {
                     tagDetach=false;
                     runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
                             uiTransitions(true);
-
                         }
                     });
                     isCorrect=true;
@@ -361,14 +378,13 @@ public class MainActivity extends AppCompatActivity implements BottomNavigationV
                         TimeUnit.SECONDS.sleep(1);
                         ndef.close();
                     }
-
                 } else {
                     //Toast.makeText(this.getApplicationContext(), R.string.message_nfc_holder_error, Toast.LENGTH_LONG).show();
                     ndef.close();
                     isCorrect=false;
                 }
 
-            } catch (IOException | FormatException | InterruptedException e ) {
+            } catch (IOException | FormatException | InterruptedException  e ) {
                 e.printStackTrace();
                 tagDetach=true;
                 isCorrect=false;
@@ -380,11 +396,13 @@ public class MainActivity extends AppCompatActivity implements BottomNavigationV
                 });
                 //Toast.makeText(this.getApplicationContext(), R.string.message_nfc_holder_detached, Toast.LENGTH_LONG).show();
             }
+            catch (NullPointerException e)
+            {
+                e.printStackTrace();
+            }
             return null;
         }
         protected void onProgressUpdate(NdefMessage... progress) {
-            //gifScanning.setVisibility(View.INVISIBLE);
-            //Toast.makeText(getApplicationContext(), R.string.message_nfc_holder_error, Toast.LENGTH_LONG).show();
             updateUI();
             if (isCorrect) {
                 uiTransitions(true);
@@ -476,15 +494,13 @@ public class MainActivity extends AppCompatActivity implements BottomNavigationV
                         dialog.dismiss();
                         isDialogshowing=false;
                         startActivity(dialer);
+                        /**Sleeping the background thread for a while because call gets disconnected when sending the message at the same time in a call*/
                         try {
                             Thread.sleep(50000);
                         } catch (InterruptedException e) {
                             e.printStackTrace();
                         }
                         smsManager.sendTextMessage(dialNo, null, finalMessage, null, null);
-                        //speech.startListening(recognizerIntent);
-                        //Toast.makeText(getApplicationContext(), "Message Sent",  Toast.LENGTH_LONG).show();
-
                     }
                 }
             }).start();
@@ -496,25 +512,25 @@ public class MainActivity extends AppCompatActivity implements BottomNavigationV
         speech.startListening(recognizerIntent);
     }
 
-
+    /**Requesting the needed permissions from the user*/
     private void reqPermission()
     {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED)
+        {
+            ActivityCompat.requestPermissions(this,
+                    new String[]{Manifest.permission.RECORD_AUDIO},1);
+        }
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.CALL_PHONE) != PackageManager.PERMISSION_GRANTED)
         {
             ActivityCompat.requestPermissions(this,
                     new String[]{Manifest.permission.CALL_PHONE},1);
         }
-        else if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED)
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED)
         {
             ActivityCompat.requestPermissions(this,
                     new String[]{Manifest.permission.ACCESS_FINE_LOCATION},1);
         }
-        else if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED)
-        {
-            ActivityCompat.requestPermissions(this,
-                    new String[]{Manifest.permission.RECORD_AUDIO},1);
-        }
-        else if (ContextCompat.checkSelfPermission(this, Manifest.permission.SEND_SMS) != PackageManager.PERMISSION_GRANTED)
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.SEND_SMS) != PackageManager.PERMISSION_GRANTED)
         {
             ActivityCompat.requestPermissions(this,
                     new String[]{Manifest.permission.SEND_SMS},1);
@@ -526,7 +542,7 @@ public class MainActivity extends AppCompatActivity implements BottomNavigationV
     }
 
     /**
-     * GPS
+     * GPS codes
      */
 
     @Override
@@ -564,6 +580,7 @@ public class MainActivity extends AppCompatActivity implements BottomNavigationV
     public void onGpsStatusChanged (int event) {
     }
 
+    /**Showing error messages when *GPS disabled *NFC disabled and When NFC is not supported by the Device*/
     public void showErrorDialog(String errorType){
         AlertDialog.Builder errorMessage = new AlertDialog.Builder(this);
         errorMessage.setCancelable(true);
@@ -628,7 +645,7 @@ public class MainActivity extends AppCompatActivity implements BottomNavigationV
 
 
     /**
-     *Speech recognition
+     *Speech recognition Codes
      */
     private void resetSpeechRecognizer() {
             if (speech != null)
@@ -664,6 +681,7 @@ public class MainActivity extends AppCompatActivity implements BottomNavigationV
         speech.stopListening();
     }
 
+    /**Recognized Speech results comes in Here*/
     @Override
     public void onResults(Bundle results) {
         Log.i(TAG, "onResults");
@@ -677,8 +695,14 @@ public class MainActivity extends AppCompatActivity implements BottomNavigationV
                 final Intent dialer = new Intent(Intent.ACTION_CALL);
                 final String dialNo = (pref.getString("key_dialNo", "123"));
                 dialer.setData(Uri.parse("tel:"+dialNo));
-                startActivity(dialer);
-
+                if (ContextCompat.checkSelfPermission(this, Manifest.permission.CALL_PHONE) != PackageManager.PERMISSION_GRANTED)
+                {
+                    ActivityCompat.requestPermissions(this,
+                            new String[]{Manifest.permission.CALL_PHONE},1);
+                }
+                else {
+                    startActivity(dialer);
+                }
             }
             //returnedText.setText(text);
             speech.startListening(recognizerIntent);
