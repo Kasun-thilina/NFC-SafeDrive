@@ -77,6 +77,10 @@ import pl.droidsonroids.gif.GifImageView;
 
 public class MainActivity extends AppCompatActivity implements BottomNavigationView.OnNavigationItemSelectedListener, LocationListener, GpsStatus.Listener,RecognitionListener
 {
+    /*************Value to be checked in the NFC Tag write it using a NFC Read Write App as Plain Text
+     *
+     * Method Name : ProcessNFCTask
+     * *************/
     public static final String TAG = MainActivity.class.getSimpleName();
     private NfcAdapter mNfcAdapter;
     private boolean isEmergency=true; //Boolean variable used to activate emergency mode on specific scenarios
@@ -359,8 +363,8 @@ public class MainActivity extends AppCompatActivity implements BottomNavigationV
                 String message = new String(ndefMessage.getRecords()[0].getPayload());
                 Log.d(TAG, "readFromNFC Before Pass: " + message);
                 //Toast.makeText(this, "Text" + message, Toast.LENGTH_LONG).show();
-
-                if (message.equals(R.string.nfcTag_Value)) {
+                /*************Value to be checked in the NFC Tag**** write it using a NFC Read Write App as Plain Text*************/
+                if (message.equals("in")) {
                     tagDetach=false;
                     runOnUiThread(new Runnable() {
                         @Override
