@@ -8,7 +8,7 @@
             />
         <EditTextPreference
             android:defaultValue="@string/default_sms"
-            android:key='@string/key_name'
+            android:key='@string/key_smsMessage'
             android:summary='@string/default_sms'
             android:title="@string/title_name"
             />

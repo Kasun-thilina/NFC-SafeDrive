@@ -57,7 +57,7 @@ public class SettingsFragment extends android.app.Fragment{
             bindPreferenceSummaryToValue(findPreference(getString(R.string.key_dialNo)));
 
             // SMS Message Edit Change Listner
-            bindPreferenceSummaryToValue(findPreference(getString(R.string.key_name)));
+            bindPreferenceSummaryToValue(findPreference(getString(R.string.key_smsMessage)));
 
         }
         }
@@ -93,7 +93,7 @@ public class SettingsFragment extends android.app.Fragment{
                     // update the changed gallery name to summary filed
                     preference.setSummary(stringValue);
                 }
-                else if (preference.getKey().equals("key_name")) {
+                else if (preference.getKey().equals("key_smsMessage")) {
                     // update the changed gallery name to summary filed
                     preference.setSummary(stringValue+" My Current Location:https://www.google.com/maps/search/?api=1&query=0.0,0.0");
                 }

@@ -26,6 +26,11 @@ import android.os.Handler;
 import android.os.Looper;
 import android.preference.PreferenceManager;
 import android.provider.Settings;
+import android.service.voice.AlwaysOnHotwordDetector;
+import android.service.voice.VoiceInteractionService;
+import android.speech.RecognitionListener;
+import android.speech.RecognizerIntent;
+import android.speech.SpeechRecognizer;
 import android.support.annotation.NonNull;
 import android.support.constraint.Group;
 import android.support.design.widget.BottomNavigationView;
@@ -37,6 +42,7 @@ import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
+import android.telephony.SmsManager;
 import android.text.SpannableString;
 import android.text.style.RelativeSizeSpan;
 import android.util.Log;
@@ -45,6 +51,8 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.animation.AlphaAnimation;
+import android.view.animation.Animation;
 import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.Switch;
@@ -54,12 +62,16 @@ import android.widget.Toast;
 import com.google.gson.Gson;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.concurrent.TimeUnit;
 
 import pl.droidsonroids.gif.GifImageView;
 
-public class MainActivity extends AppCompatActivity implements BottomNavigationView.OnNavigationItemSelectedListener, LocationListener, GpsStatus.Listener
+public class MainActivity extends AppCompatActivity implements BottomNavigationView.OnNavigationItemSelectedListener, LocationListener, GpsStatus.Listener,RecognitionListener
 {
     public static final String TAG = MainActivity.class.getSimpleName();
     private NfcAdapter mNfcAdapter;
@@ -68,10 +80,12 @@ public class MainActivity extends AppCompatActivity implements BottomNavigationV
     private boolean isDriving=false;
     private boolean tagDetach=false;
     private boolean isCorrect=false;
+    private String longitude="0.0",latitude="0.0";
     Dialog dialog;
     private GifImageView gifScanning;
     private ImageView nfcIcon;
     private ImageView gpsIcon;
+    TextView txtSearching,txtSpeed,txtDriving;
 
     /**
      * For GPS
@@ -86,6 +100,8 @@ public class MainActivity extends AppCompatActivity implements BottomNavigationV
     private Data.OnGpsServiceUpdate onGpsServiceUpdate;
     private boolean firstfix;
     /**END*/
+    private SpeechRecognizer speech = null;
+    private Intent recognizerIntent;
 
 
     @Override
@@ -105,7 +121,13 @@ public class MainActivity extends AppCompatActivity implements BottomNavigationV
         data = new Data(onGpsServiceUpdate);
         sharedPreferences = PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
         mLocationManager = (LocationManager) this.getSystemService(Context.LOCATION_SERVICE);
-        /**END*/
+        /**END
+         * Begining of Speech recognition service
+         * */
+        // start speech recogniser
+        resetSpeechRecognizer();
+        setRecogniserIntent();
+        speech.startListening(recognizerIntent);
     }
     /**
      *Bottom Navigation Bar
@@ -145,6 +167,7 @@ public class MainActivity extends AppCompatActivity implements BottomNavigationV
     private void initNFC(){
 
         mNfcAdapter = NfcAdapter.getDefaultAdapter(this);
+
     }
     /**
      * Detecting NFC tag and returning to the home screen at any time
@@ -168,6 +191,7 @@ public class MainActivity extends AppCompatActivity implements BottomNavigationV
     @Override
     protected void onResume() {
         super.onResume();
+        uiTransitions(false);
         IntentFilter tagDetected = new IntentFilter(NfcAdapter.ACTION_TAG_DISCOVERED);
         IntentFilter ndefDetected = new IntentFilter(NfcAdapter.ACTION_NDEF_DISCOVERED);
         IntentFilter techDetected = new IntentFilter(NfcAdapter.ACTION_TECH_DISCOVERED);
@@ -181,7 +205,6 @@ public class MainActivity extends AppCompatActivity implements BottomNavigationV
         /**
          * GPS
          */
-        super.onResume();
         firstfix = true;
         if (!data.isRunning()){
             Gson gson = new Gson();
@@ -218,7 +241,13 @@ public class MainActivity extends AppCompatActivity implements BottomNavigationV
         }
         mLocationManager.addGpsStatusListener(this);
         /***/
-
+        /**
+         * Speech recognition
+         */
+        if (recognizerIntent!=null) {
+            resetSpeechRecognizer();
+            speech.startListening(recognizerIntent);
+        }
     }
     public void onNfcDetected(Ndef ndef){
        // readFromNFC(ndef);
@@ -231,6 +260,8 @@ public class MainActivity extends AppCompatActivity implements BottomNavigationV
             while (1==1)
             {*/
             speed = location.getSpeed() * 3.6;
+            longitude=Double.toString(location.getLongitude());
+            latitude=Double.toString(location.getLatitude());
             String units="km/h";
             s= new SpannableString(String.format(Locale.ENGLISH, "%.0f %s", speed, units));
             s.setSpan(new RelativeSizeSpan(0.45f), s.length()-units.length()-1, s.length(), 0);
@@ -239,27 +270,39 @@ public class MainActivity extends AppCompatActivity implements BottomNavigationV
         }
     }
     private void updateUI(){
+        txtSpeed=findViewById(R.id.txtSpeed);
         drivingMode=findViewById(R.id.txtDriving);
         currentSpeed = findViewById(R.id.valSpeed);
        // Log.d(TAG, "activeNFC: "+correctTAG);
           if (currentSpeed!=null) {
             currentSpeed.setText(s);
             if (speed > 10) {
+                txtSpeed.setVisibility(View.VISIBLE);
                 drivingMode.setText(R.string.msg_driving);
                 isDriving = true;
             } else {
+                txtSpeed.setVisibility(View.INVISIBLE);
                 drivingMode.setText(R.string.msg_notDriving);
                 isDriving=false;
             }
         }
     }
     private void uiTransitions(boolean isfound){
+        txtSearching = findViewById(R.id.txtScanningForNFC );
+        Animation anim = new AlphaAnimation(0.0f, 1.0f);
+        anim.setDuration(50); //You can manage the time of the blink with this parameter
+        anim.setStartOffset(800);
+        anim.setRepeatMode(Animation.REVERSE);
+        anim.setRepeatCount(Animation.INFINITE);
+        txtSearching.startAnimation(anim);
        gifScanning=findViewById(R.id.gifScanner);
        nfcIcon=findViewById(R.id.activeNFC);
        gpsIcon=findViewById(R.id.activeGPS);
         if (isfound) {
             gifScanning.setVisibility(View.INVISIBLE);
             nfcIcon.setVisibility(View.VISIBLE);
+            txtSearching.setText("Attached to NFC Holder");
+            txtSearching.clearAnimation();
             if (isDriving)
             {
                 gpsIcon.setVisibility(View.VISIBLE);
@@ -271,6 +314,7 @@ public class MainActivity extends AppCompatActivity implements BottomNavigationV
         }
         else
         {
+            txtSearching.setText("Searching For NFC Holder");
             gifScanning.setVisibility(View.VISIBLE);
             nfcIcon.setVisibility(View.INVISIBLE);
             gpsIcon.setVisibility(View.INVISIBLE);
@@ -278,7 +322,6 @@ public class MainActivity extends AppCompatActivity implements BottomNavigationV
 
 
     }
-
     public class ProcessNFCTask extends AsyncTask<Ndef, NdefMessage, Void> {
         @Override
         protected void onPreExecute() {
@@ -305,6 +348,7 @@ public class MainActivity extends AppCompatActivity implements BottomNavigationV
                         @Override
                         public void run() {
                             uiTransitions(true);
+
                         }
                     });
                     isCorrect=true;
@@ -349,7 +393,6 @@ public class MainActivity extends AppCompatActivity implements BottomNavigationV
             {
                 uiTransitions(false);
             }
-            //uiTransitions(false);
         }
 
         protected void onPostExecute(Void result) {
@@ -372,11 +415,15 @@ public class MainActivity extends AppCompatActivity implements BottomNavigationV
      */
     private void activateEmergency()
     {
-
+        try {
             SharedPreferences pref = PreferenceManager.getDefaultSharedPreferences(this);
-            String dialNo = (pref.getString("key_dialNo", "0770000001"));
+            final String dialNo = (pref.getString("key_dialNo", "123"));
+            final String message = (pref.getString("key_smsMessage", "123"));
+            final String finalMessage
+                    =message+" My Current Location:https://www.google.com/maps/search/?api=1&query="+latitude+','+longitude;
             String dialName = pref.getString("key_name", "Kasun");
             Log.d(TAG, "Number " + dialNo);
+            final SmsManager smsManager = SmsManager.getDefault();
             final Intent dialer = new Intent(Intent.ACTION_CALL);
             dialer.setData(Uri.parse("tel:" + dialNo));
             //startActivity(dialer);
@@ -426,13 +473,27 @@ public class MainActivity extends AppCompatActivity implements BottomNavigationV
                         Log.d(TAG, "dissmiss fro isemergeny false " );
                     }
                     if (isEmergency & isDialogshowing) {
-                        startActivity(dialer);
                         dialog.dismiss();
                         isDialogshowing=false;
+                        startActivity(dialer);
+                        try {
+                            Thread.sleep(50000);
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
+                        smsManager.sendTextMessage(dialNo, null, finalMessage, null, null);
+                        //speech.startListening(recognizerIntent);
+                        //Toast.makeText(getApplicationContext(), "Message Sent",  Toast.LENGTH_LONG).show();
+
                     }
                 }
             }).start();
-
+        } catch (Exception ex) {
+            Toast.makeText(getApplicationContext(),ex.getMessage().toString(),
+                    Toast.LENGTH_LONG).show();
+            ex.printStackTrace();
+        }
+        speech.startListening(recognizerIntent);
     }
 
 
@@ -447,6 +508,16 @@ public class MainActivity extends AppCompatActivity implements BottomNavigationV
         {
             ActivityCompat.requestPermissions(this,
                     new String[]{Manifest.permission.ACCESS_FINE_LOCATION},1);
+        }
+        else if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED)
+        {
+            ActivityCompat.requestPermissions(this,
+                    new String[]{Manifest.permission.RECORD_AUDIO},1);
+        }
+        else if (ContextCompat.checkSelfPermission(this, Manifest.permission.SEND_SMS) != PackageManager.PERMISSION_GRANTED)
+        {
+            ActivityCompat.requestPermissions(this,
+                    new String[]{Manifest.permission.SEND_SMS},1);
         }
         else
         {
@@ -468,14 +539,26 @@ public class MainActivity extends AppCompatActivity implements BottomNavigationV
         String json = gson.toJson(data);
         prefsEditor.putString("data", json);
         prefsEditor.commit();
+
+        if (recognizerIntent!=null) {
+            speech.stopListening();
+        }
     }
 
     @Override
     public void onDestroy(){
         super.onDestroy();
         stopService(new Intent(getBaseContext(), GPSService.class));
+        // prevent memory leaks when activity is destroyed
     }
-
+    @Override
+    protected void onStop() {
+        Log.i(TAG, "stop");
+        super.onStop();
+        if (speech != null) {
+            speech.destroy();
+        }
+    }
 
     @Override
     public void onGpsStatusChanged (int event) {
@@ -542,4 +625,136 @@ public class MainActivity extends AppCompatActivity implements BottomNavigationV
     @Override
     public void onProviderDisabled(String s) {}
     /***/
+
+
+    /**
+     *Speech recognition
+     */
+    private void resetSpeechRecognizer() {
+            if (speech != null)
+                speech.destroy();
+            speech = SpeechRecognizer.createSpeechRecognizer(this);
+
+            Log.i(TAG, "isRecognitionAvailable: " + SpeechRecognizer.isRecognitionAvailable(this));
+
+            if (SpeechRecognizer.isRecognitionAvailable(this))
+                speech.setRecognitionListener(this);
+            else
+                finish();
+
+    }
+    private void setRecogniserIntent() {
+
+        recognizerIntent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+        recognizerIntent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE,
+                "en");
+        recognizerIntent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL,
+                RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
+        //recognizerIntent.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 3);
+    }
+
+    @Override
+    public void onBufferReceived(byte[] buffer) {
+        Log.i(TAG, "onBufferReceived: " + buffer);
+    }
+
+    @Override
+    public void onEndOfSpeech() {
+        Log.i(TAG, "onEndOfSpeech");
+        speech.stopListening();
+    }
+
+    @Override
+    public void onResults(Bundle results) {
+        Log.i(TAG, "onResults");
+        ArrayList<String> matches = results
+                .getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
+        String text = "";
+        for (String result : matches) {
+            text += result + "\n";
+            if (result.equalsIgnoreCase("Emergency")) {
+                SharedPreferences pref = PreferenceManager.getDefaultSharedPreferences(this);
+                final Intent dialer = new Intent(Intent.ACTION_CALL);
+                final String dialNo = (pref.getString("key_dialNo", "123"));
+                dialer.setData(Uri.parse("tel:"+dialNo));
+                startActivity(dialer);
+
+            }
+            //returnedText.setText(text);
+            speech.startListening(recognizerIntent);
+        }
+    }
+
+    @Override
+    public void onError(int errorCode) {
+        String errorMessage = getErrorText(errorCode);
+        Log.i(TAG, "FAILED " + errorMessage);
+        resetSpeechRecognizer();
+        speech.startListening(recognizerIntent);
+
+    }
+
+
+    @Override
+    public void onEvent(int arg0, Bundle arg1) {
+        Log.i(TAG, "onEvent");
+    }
+
+    @Override
+    public void onPartialResults(Bundle arg0) {
+        Log.i(TAG, "onPartialResults");
+    }
+
+    @Override
+    public void onReadyForSpeech(Bundle arg0) {
+        //Log.i(TAG, "onReadyForSpeech");
+    }
+    @Override
+    public void onBeginningOfSpeech() {
+        Log.i(TAG, "onBeginningOfSpeech");
+
+    }
+
+    @Override
+    public void onRmsChanged(float rmsdB) {
+        //Log.i(TAG, "onRmsChanged: " + rmsdB);
+    }
+
+    public String getErrorText(int errorCode) {
+        String message;
+        switch (errorCode) {
+            case SpeechRecognizer.ERROR_AUDIO:
+                message = "Audio recording error";
+                break;
+            case SpeechRecognizer.ERROR_CLIENT:
+                message = "Client side error";
+                break;
+            case SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS:
+                message = "Insufficient permissions";
+                break;
+            case SpeechRecognizer.ERROR_NETWORK:
+                message = "Network error";
+                break;
+            case SpeechRecognizer.ERROR_NETWORK_TIMEOUT:
+                message = "Network timeout";
+                break;
+            case SpeechRecognizer.ERROR_NO_MATCH:
+                message = "No match";
+                break;
+            case SpeechRecognizer.ERROR_RECOGNIZER_BUSY:
+                message = "RecognitionService busy";
+                break;
+            case SpeechRecognizer.ERROR_SERVER:
+                message = "error from server";
+                break;
+            case SpeechRecognizer.ERROR_SPEECH_TIMEOUT:
+                message = "No speech input";
+                break;
+            default:
+                message = "Didn't understand, please try again.";
+                break;
+        }
+        return message;
+    }
+
 }
