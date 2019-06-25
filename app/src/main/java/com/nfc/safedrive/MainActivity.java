@@ -3,6 +3,9 @@ package com.nfc.safedrive;
 import android.Manifest;
 import android.app.Dialog;
 import android.app.PendingIntent;
+import android.app.job.JobInfo;
+import android.app.job.JobScheduler;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
@@ -22,6 +25,7 @@ import android.nfc.NfcAdapter;
 import android.nfc.Tag;
 import android.nfc.tech.Ndef;
 import android.os.AsyncTask;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -33,6 +37,7 @@ import android.speech.RecognitionListener;
 import android.speech.RecognizerIntent;
 import android.speech.SpeechRecognizer;
 import android.support.annotation.NonNull;
+import android.support.annotation.RequiresApi;
 import android.support.constraint.Group;
 import android.support.design.widget.BottomNavigationView;
 import android.support.v4.app.ActivityCompat;
@@ -49,6 +54,7 @@ import android.text.SpannableString;
 import android.text.TextUtils;
 import android.text.style.ForegroundColorSpan;
 import android.text.style.RelativeSizeSpan;
+import android.util.JsonReader;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -65,7 +71,15 @@ import android.widget.Toast;
 
 import com.google.gson.Gson;
 
+import net.gotev.speech.Speech;
+
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -73,27 +87,31 @@ import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.TimeUnit;
 
+import javax.net.ssl.HttpsURLConnection;
+
 import pl.droidsonroids.gif.GifImageView;
 
 public class MainActivity extends AppCompatActivity implements BottomNavigationView.OnNavigationItemSelectedListener, LocationListener, GpsStatus.Listener,RecognitionListener
 {
-    /*************Value to be checked in the NFC Tag write it using a NFC Read Write App as Plain Text
-     *
-     * Method Name : ProcessNFCTask
-     * *************/
     public static final String TAG = MainActivity.class.getSimpleName();
     private NfcAdapter mNfcAdapter;
     private boolean isEmergency=true; //Boolean variable used to activate emergency mode on specific scenarios
     private boolean isDialogshowing=false; //Boolean variable used to dismiss the emergency mode timer in specific scenarios
-    private boolean isDriving=false;//Boolean variable used to detect when the driving mode is active (speed > 10)
+    private boolean isDriving,hasDriven,isDrivingDialogShown,run=false;//Boolean variable used to detect  the driving mode
     private boolean tagDetach=false;//Boolean variable used to detect the tag detach scenarios
     private boolean isCorrect=false;//Boolean variable used to detect the correct NFC tag with the specific code in it
+    private boolean isConnected=false;//Boolean variable to check Raspberry PI Connection
+    private int nfcError=0,dialogCounter=0;
     private String longitude="0.0",latitude="0.0";
     Dialog dialog;
+    AlertDialog errorDialog;
     private GifImageView gifScanning;
-    private ImageView nfcIcon;
+    private ImageView nfcIcon,RSPIcon;
     private ImageView gpsIcon;
     TextView txtSearching,txtSpeed;
+
+    /**URL For Raspberry PI Should go here*/
+    final URL APIURL=new URL(" https://demo7381782.mockable.io/");
     /**
      * For GPS
      */
@@ -109,7 +127,10 @@ public class MainActivity extends AppCompatActivity implements BottomNavigationV
     /**For Speech recognition*/
     private SpeechRecognizer speech = null;
     private Intent recognizerIntent;
+    boolean useNFC,showSpeed ;
 
+    public MainActivity() throws MalformedURLException {
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -141,8 +162,109 @@ public class MainActivity extends AppCompatActivity implements BottomNavigationV
             resetSpeechRecognizer();
             setRecogniserIntent();
             speech.startListening(recognizerIntent);
-
+        SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(this);
+        useNFC= (preferences.getBoolean("pref_nfc",true));
+        showSpeed= (preferences.getBoolean("pref_speed",true));
+        Speech.init(this, getPackageName());
     }
+    /***
+     * Raspberry Pi connection
+     */
+    public void sendRequest() {
+        final Handler handler = new Handler();
+        Timer timer = new Timer();
+        TimerTask doAsynchronousTask = new TimerTask() {
+            @Override
+            public void run() {
+                handler.post(new Runnable() {
+                    public void run() {
+                        AsyncTask.execute(new Runnable() {
+                            @Override
+                            public void run() {
+                                try {
+                                    HttpsURLConnection myConnection =
+                                            (HttpsURLConnection) APIURL.openConnection();
+                                    myConnection.setRequestProperty("Content-Type", "text/plain");
+                                    if (myConnection.getResponseCode() == 200) {
+                                        // Success
+                                        InputStream responseBody = myConnection.getInputStream();
+                                        InputStreamReader responseBodyReader =
+                                                new InputStreamReader(responseBody, "UTF-8");
+                                        BufferedReader r = new BufferedReader(new InputStreamReader(responseBody));
+                                        StringBuilder total = new StringBuilder();
+                                        for (String line; (line = r.readLine()) != null; ) {
+                                            total.append(line);
+                                        }
+                                        String result = total.toString();
+                                        Log.d(TAG, "JSON ResponseBody :" + result);
+
+                                        if (result.equalsIgnoreCase("True"))
+                                        {
+                                            isConnected=true;
+                                            runOnUiThread(new Runnable() {
+                                                @Override
+                                                public void run() {
+                                                    uiTransitions(true);
+                                                }
+                                            });
+                                        }
+                                        else
+                                        {
+                                            isConnected=false;
+                                            runOnUiThread(new Runnable() {
+                                                @Override
+                                                public void run() {
+                                                    uiTransitions(false);
+                                                    if (!run) {
+                                                        isEmergency = true;
+                                                        run=false;
+                                                        activateEmergency();
+                                                    }
+                                                    Timer timer = new Timer();
+                                                    timer.schedule(new TimerTask() {
+                                                        @Override
+                                                        public void run() {
+                                                            //This is where we tell it what to do when it hits 2 mins
+                                                            run=true;
+                                                        }
+                                                    }, 120000);
+                                                }
+                                            });
+                                        }
+
+                                    } else {
+                                        Log.d(TAG, "**JSON Request Failed : Connection Error**");
+                                        isConnected=false;
+                                        runOnUiThread(new Runnable() {
+                                            @Override
+                                            public void run() {
+                                                uiTransitions(false);
+                                            }
+                                        });
+                                    }
+
+                                    myConnection.disconnect();
+                                } catch (IOException  e) {
+                                    e.printStackTrace();
+                                    Log.d(TAG, "JSON Request Failed(exception)");
+                                    runOnUiThread(new Runnable() {
+                                        @Override
+                                        public void run() {
+                                            uiTransitions(false);
+                                        }
+                                    });
+                                }
+
+                            }
+                        });
+                    }
+                });
+            }
+        };
+        timer.schedule(doAsynchronousTask, 0, 10000); //execute in every 10000 ms
+    }
+
+
     /**
      *Bottom Navigation Bar
      */
@@ -241,11 +363,16 @@ public class MainActivity extends AppCompatActivity implements BottomNavigationV
             }
             try {
                 mNfcAdapter.isEnabled();
-                if (!mNfcAdapter.isEnabled()) {
-                    showErrorDialog("nfc");
+                if (useNFC) {
+                    if (!mNfcAdapter.isEnabled()) {
+                        showErrorDialog("nfc");
+                    }
                 }
             } catch (NullPointerException e) {
-                showErrorDialog("nonfc");
+                if (useNFC) {
+                    showErrorDialog("nonfc");
+                    nfcError++;
+                }
             }
             mLocationManager.addGpsStatusListener(this);
         }
@@ -278,9 +405,15 @@ public class MainActivity extends AppCompatActivity implements BottomNavigationV
     }
     /**This Method is Updating the Speed value and driving mode values when needed */
     private void updateUI(){
+        final AlertDialog.Builder dialogIsDriving = new AlertDialog.Builder(this);
+        dialogIsDriving.setCancelable(true);
         txtSpeed=findViewById(R.id.txtSpeed);
         drivingMode=findViewById(R.id.txtDriving);
         currentSpeed = findViewById(R.id.valSpeed);
+        //drivingMode.setText(R.string.msg_notDriving);
+       /* if (showSpeed) {
+            drivingMode.setTextColor(Color.parseColor("#a5d6a7"));
+        }*/
        // Log.d(TAG, "activeNFC: "+correctTAG);
           if (currentSpeed!=null) {
               String valSpeed=s.toString();
@@ -288,8 +421,8 @@ public class MainActivity extends AppCompatActivity implements BottomNavigationV
               SpannableString speedValue=  new SpannableString(valSpeed);
               SpannableString speedText=  new SpannableString(strSpeed);
               speedText.setSpan(new RelativeSizeSpan(1.35f), 0,5, 0); // set size
-              if (speed > 10) {
-                speedValue.setSpan(new ForegroundColorSpan(Color.parseColor("#00bfa5")),0,7,0);// set color
+              if (speed > 1) {
+                speedValue.setSpan(new ForegroundColorSpan(Color.parseColor("#00bfa5")),0,6,0);// set color
                 //txtSpeed.setText();
                 if (!(gifScanning.getVisibility()==View.VISIBLE)) {
                     gpsIcon.setVisibility(View.VISIBLE);
@@ -297,50 +430,112 @@ public class MainActivity extends AppCompatActivity implements BottomNavigationV
                 drivingMode.setText(R.string.msg_driving);
                 drivingMode.setTextColor(Color.parseColor("#4caf50"));
                 isDriving = true;
+                hasDriven=true;
             } else {
                 speedValue.setSpan(new ForegroundColorSpan(Color.parseColor("#ef5350")),0,6,0);// set color
                 drivingMode.setText(R.string.msg_notDriving);
                   drivingMode.setTextColor(Color.parseColor("#a5d6a7"));
                 gpsIcon.setVisibility(View.INVISIBLE);
                 isDriving=false;
+
+                dialogIsDriving.setMessage("Are You Still Driving?");
+                  dialogIsDriving.setPositiveButton(
+                          "Yes",
+                          new DialogInterface.OnClickListener() {
+                              public void onClick(DialogInterface dialog, int id) {
+                                  dialog.dismiss();
+
+                              }
+                          });
+                  dialogIsDriving.setNegativeButton(
+                          "No",
+                          new DialogInterface.OnClickListener() {
+                              public void onClick(DialogInterface dialog, int id) {
+                                  SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
+                                  boolean useNFC = (preferences.getBoolean("pref_nfc",true));
+                                  if (useNFC){
+                                      // Your switch is on
+                                  } else {
+                                      isEmergency=true;
+                                      activateEmergency();
+                                      //uiTransitions(true);
+                                  }
+                              }
+                          });
+                    if (hasDriven & (!isDrivingDialogShown)) {
+                        errorDialog = dialogIsDriving.create();
+                        errorDialog.show();
+                        Speech.getInstance().say("Are You Still Driving?");
+                        isDrivingDialogShown=true;
+                        Timer timer = new Timer();
+                        timer.schedule(new TimerTask(){
+                            @Override
+                            public void run() {
+                                //This is where we tell it what to do when it hits 60 seconds
+                                hasDriven=false;
+                                isDrivingDialogShown=false;
+                                Log.d(TAG, "*****Delayed" );
+                            }
+                        }, 120000);
+                    }
+
             }
-              currentSpeed.setText(TextUtils.concat(speedText,speedValue));
+            /**To Show Speed Uncomment This Line*/
+              if (showSpeed) {
+                  currentSpeed.setText(TextUtils.concat(speedText, speedValue));
+              }
         }
     }
     /**This Method set the GPS Scanner animation and NFC detected , Navigation Mode icons*/
     private void uiTransitions(boolean isfound){
-        txtSearching = findViewById(R.id.txtScanningForNFC );
-        Animation anim = new AlphaAnimation(0.0f, 1.0f);
-        anim.setDuration(50); //You can manage the time of the blink with this parameter
-        anim.setStartOffset(800);
-        anim.setRepeatMode(Animation.REVERSE);
-        anim.setRepeatCount(Animation.INFINITE);
-        txtSearching.startAnimation(anim);
-        gifScanning=findViewById(R.id.gifScanner);
-        nfcIcon=findViewById(R.id.activeNFC);
-        gpsIcon=findViewById(R.id.activeGPS);
-        if (isfound) {
-            gifScanning.setVisibility(View.INVISIBLE);
-            nfcIcon.setVisibility(View.VISIBLE);
-            txtSearching.setText("Attached to NFC Holder");
-            txtSearching.clearAnimation();
-            if (isDriving)
-            {
-                gpsIcon.setVisibility(View.VISIBLE);
-            }
-            else
-            {
+        try {
+            txtSearching = findViewById(R.id.txtScanningForNFC);
+            Animation anim = new AlphaAnimation(0.0f, 1.0f);
+            anim.setDuration(50); //You can manage the time of the blink with this parameter
+            anim.setStartOffset(800);
+            anim.setRepeatMode(Animation.REVERSE);
+            anim.setRepeatCount(Animation.INFINITE);
+            txtSearching.startAnimation(anim);
+            gifScanning = findViewById(R.id.gifScanner);
+            nfcIcon = findViewById(R.id.activeNFC);
+            gpsIcon = findViewById(R.id.activeGPS);
+            RSPIcon = findViewById(R.id.RSPIcon);
+            if (isfound) {
+                gifScanning.setVisibility(View.INVISIBLE);
+                if (useNFC) {
+                    nfcIcon.setVisibility(View.VISIBLE);
+                    txtSearching.setText("Attached to NFC Holder");
+                } else {
+                    txtSearching.setText("Connected to Raspberry PI");
+                    if (isConnected) {
+                        RSPIcon.setVisibility(View.VISIBLE);
+                    } else {
+                        RSPIcon.setVisibility(View.INVISIBLE);
+                    }
+                }
+                txtSearching.clearAnimation();
+                if (isDriving) {
+                    gpsIcon.setVisibility(View.VISIBLE);
+                } else {
+                    gpsIcon.setVisibility(View.INVISIBLE);
+                }
+            } else {
+                if (useNFC) {
+                    txtSearching.setText("Searching For NFC Holder");
+                } else {
+                    txtSearching.setText("Searching For Raspberry PI");
+                    RSPIcon.setVisibility(View.INVISIBLE);
+                }
+
+                gifScanning.setVisibility(View.VISIBLE);
+                nfcIcon.setVisibility(View.INVISIBLE);
                 gpsIcon.setVisibility(View.INVISIBLE);
             }
         }
-        else
+        catch (NullPointerException e)
         {
-            txtSearching.setText("Searching For NFC Holder");
-            gifScanning.setVisibility(View.VISIBLE);
-            nfcIcon.setVisibility(View.INVISIBLE);
-            gpsIcon.setVisibility(View.INVISIBLE);
+            e.printStackTrace();
         }
-
 
     }
     /** Async Task(Runs in background thread) to detect the correct NFC tag and read it in a indefinite loop */
@@ -387,6 +582,11 @@ public class MainActivity extends AppCompatActivity implements BottomNavigationV
                     ndef.close();
                     isCorrect=false;
                 }
+                /**
+                 * Raspberry PI
+                 */
+
+                /**end*/
 
             } catch (IOException | FormatException | InterruptedException  e ) {
                 e.printStackTrace();
@@ -424,7 +624,7 @@ public class MainActivity extends AppCompatActivity implements BottomNavigationV
             } else {
                 if (isDialogshowing) {
                     dialog.dismiss();
-                    Log.d(TAG, "dissmiss fro isdialogshowing true 2 " );
+                    //Log.d(TAG, "dissmiss fro isdialogshowing true 2 " );
                     isDialogshowing = false;
                 }
             }
@@ -455,7 +655,7 @@ public class MainActivity extends AppCompatActivity implements BottomNavigationV
             final TextView counter = dialog.findViewById(R.id.counter);
 
             dialog.setCanceledOnTouchOutside(false);
-            if (isDriving) {
+            if ((!isDriving) & (!isConnected)){
                 dialog.show();
                 isDialogshowing = true;
             }
@@ -569,6 +769,7 @@ public class MainActivity extends AppCompatActivity implements BottomNavigationV
     public void onDestroy(){
         super.onDestroy();
         stopService(new Intent(getBaseContext(), GPSService.class));
+        Speech.getInstance().shutdown();
         // prevent memory leaks when activity is destroyed
     }
     @Override
@@ -613,14 +814,16 @@ public class MainActivity extends AppCompatActivity implements BottomNavigationV
         }
         if (errorType.equalsIgnoreCase("nonfc"))
         {
-            errorMessage.setMessage(R.string.errorMsg_NFCDNotFound);
-            errorMessage.setPositiveButton(
-                    "Use the App without NFC",
-                    new DialogInterface.OnClickListener() {
-                        public void onClick(DialogInterface dialog, int id) {
-                            dialog.cancel();
-                        }
-                    });
+            if (nfcError<=2) {
+                errorMessage.setMessage(R.string.errorMsg_NFCDNotFound);
+                errorMessage.setPositiveButton(
+                        "Use the App without NFC",
+                        new DialogInterface.OnClickListener() {
+                            public void onClick(DialogInterface dialog, int id) {
+                                dialog.cancel();
+                            }
+                        });
+            }
         }
         errorMessage.setNegativeButton(
                 "Cancel",
@@ -708,6 +911,21 @@ public class MainActivity extends AppCompatActivity implements BottomNavigationV
                     startActivity(dialer);
                 }
             }
+            else if (result.equalsIgnoreCase("Yes"))
+            {
+                if (errorDialog.isShowing())
+                {
+                    errorDialog.dismiss();
+                }
+            }
+            else if (result.equalsIgnoreCase("No"))
+            {
+                if (errorDialog.isShowing()) {
+                    errorDialog.dismiss();
+                    isEmergency = true;
+                    activateEmergency();
+                }
+            }
             //returnedText.setText(text);
             speech.startListening(recognizerIntent);
         }
@@ -740,6 +958,7 @@ public class MainActivity extends AppCompatActivity implements BottomNavigationV
     @Override
     public void onBeginningOfSpeech() {
         Log.i(TAG, "onBeginningOfSpeech");
+        sendRequest();
 
     }
 

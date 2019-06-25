@@ -12,6 +12,14 @@
             android:summary='@string/default_sms'
             android:title="@string/title_name"
             />
+        <SwitchPreference
+            android:key="pref_nfc"
+            android:title="Use NFC"
+            android:defaultValue="false" />
+        <SwitchPreference
+            android:key="pref_speed"
+            android:title="Show Driving Speed"
+            android:defaultValue="false" />
     </PreferenceCategory>
     <PreferenceCategory android:title="About">
         <Preference

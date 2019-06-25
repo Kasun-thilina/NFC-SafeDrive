@@ -8,7 +8,17 @@
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
     <uses-permission android:name="android.permission.RECORD_AUDIO"/>
     <uses-permission android:name="android.permission.SEND_SMS" />
+    <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- Always required on api < 21, needed to keep a wake lock while your job is running -->
+    <uses-permission android:name="android.permission.WAKE_LOCK"/>
+    <!-- Required on api < 21 if you are using setRequiredNetworkType(int) -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+    <!-- Required on all api levels if you are using setPersisted(true) -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
     <application
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
@@ -18,11 +28,7 @@
         android:theme="@style/AppTheme"
         tools:ignore="GoogleAppIndexingWarning">
         <service android:name=".GPSService" />
-        <!--
-                <activity
-            android:name=".MainActivity"
-            android:label="@string/title_activity_main" />
-        -->
+        <service android:name=".APIService" />
 
         <activity android:name=".MainActivity">
             <intent-filter>

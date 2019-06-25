@@ -23,7 +23,7 @@
     <string name="default_sms">Im in an emergency</string>
     <string name="summary_developer">Kasun Thilina @ © Kasun Creations</string>
     <string name="developer_linkedIN">https://www.linkedin.com/in/kasun-thilina</string>
-    <string name="summary_version">1.0</string>
+    <string name="summary_version">3.0</string>
 
     <!-- Strings related to GPS -->
     <string name="msg_driving">Driving Mode Activated</string>
