@@ -208,7 +208,7 @@ public class MainActivity extends AppCompatActivity implements BottomNavigationV
                                                 }
                                             });
                                         }
-                                        else
+                                       /* else
                                         {
                                             isConnected=false;
                                             runOnUiThread(new Runnable() {
@@ -230,7 +230,7 @@ public class MainActivity extends AppCompatActivity implements BottomNavigationV
                                                     }, 120000);
                                                 }
                                             });
-                                        }
+                                        }*/
 
                                     } else {
                                         Log.d(TAG, "**JSON Request Failed : Connection Error**");
@@ -476,7 +476,7 @@ public class MainActivity extends AppCompatActivity implements BottomNavigationV
                                 isDrivingDialogShown=false;
                                 Log.d(TAG, "*****Delayed" );
                             }
-                        }, 120000);
+                        }, 60000);
                     }
 
             }
@@ -655,7 +655,7 @@ public class MainActivity extends AppCompatActivity implements BottomNavigationV
             final TextView counter = dialog.findViewById(R.id.counter);
 
             dialog.setCanceledOnTouchOutside(false);
-            if ((!isDriving) & (!isConnected)){
+            if ((!isDriving) & (isConnected)){
                 dialog.show();
                 isDialogshowing = true;
             }
@@ -924,6 +924,12 @@ public class MainActivity extends AppCompatActivity implements BottomNavigationV
                     errorDialog.dismiss();
                     isEmergency = true;
                     activateEmergency();
+                }
+            }
+            else if (result.equalsIgnoreCase("Cancel"))
+            {
+                if (dialog.isShowing()) {
+                    dialog.dismiss();
                 }
             }
             //returnedText.setText(text);
