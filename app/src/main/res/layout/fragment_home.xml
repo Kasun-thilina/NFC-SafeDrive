@@ -65,7 +65,7 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="10dp"
         android:layout_marginBottom="23dp"
-        android:text="Scanning For NFC Holder"
+        android:text="Scanning For Raspberry Pi"
         android:textAlignment="center"
         android:textColor="#2196f3"
         android:textSize="30sp"

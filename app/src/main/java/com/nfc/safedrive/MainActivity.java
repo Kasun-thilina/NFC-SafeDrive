@@ -503,8 +503,8 @@ public class MainActivity extends AppCompatActivity implements BottomNavigationV
             if (isfound) {
                 gifScanning.setVisibility(View.INVISIBLE);
                 if (useNFC) {
-                    nfcIcon.setVisibility(View.VISIBLE);
-                    txtSearching.setText("Attached to NFC Holder");
+                    //nfcIcon.setVisibility(View.VISIBLE);
+                    //txtSearching.setText("Attached to NFC Holder");
                 } else {
                     txtSearching.setText("Connected to Raspberry PI");
                     if (isConnected) {
@@ -521,14 +521,14 @@ public class MainActivity extends AppCompatActivity implements BottomNavigationV
                 }
             } else {
                 if (useNFC) {
-                    txtSearching.setText("Searching For NFC Holder");
+                    //txtSearching.setText("Searching For NFC Holder");
                 } else {
                     txtSearching.setText("Searching For Raspberry PI");
                     RSPIcon.setVisibility(View.INVISIBLE);
                 }
 
                 gifScanning.setVisibility(View.VISIBLE);
-                nfcIcon.setVisibility(View.INVISIBLE);
+                //nfcIcon.setVisibility(View.INVISIBLE);
                 gpsIcon.setVisibility(View.INVISIBLE);
             }
         }
@@ -803,26 +803,26 @@ public class MainActivity extends AppCompatActivity implements BottomNavigationV
         }
         if (errorType.equalsIgnoreCase("nfc"))
         {
-            errorMessage.setMessage(R.string.errorMsg_NFCDisabled);
-            errorMessage.setPositiveButton(
+           // errorMessage.setMessage(R.string.errorMsg_NFCDisabled);
+            /*errorMessage.setPositiveButton(
                     "Open NFC Settings",
                     new DialogInterface.OnClickListener() {
                         public void onClick(DialogInterface dialog, int id) {
                             startActivity(new Intent(Settings.ACTION_NFC_SETTINGS));
                         }
-                    });
+                    });*/
         }
         if (errorType.equalsIgnoreCase("nonfc"))
         {
             if (nfcError<=2) {
-                errorMessage.setMessage(R.string.errorMsg_NFCDNotFound);
+                /*errorMessage.setMessage(R.string.errorMsg_NFCDNotFound);
                 errorMessage.setPositiveButton(
                         "Use the App without NFC",
                         new DialogInterface.OnClickListener() {
                             public void onClick(DialogInterface dialog, int id) {
                                 dialog.cancel();
                             }
-                        });
+                        });*/
             }
         }
         errorMessage.setNegativeButton(
