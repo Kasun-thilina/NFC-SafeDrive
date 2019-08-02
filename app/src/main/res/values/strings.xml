@@ -18,12 +18,14 @@
     <string name="key_dialNo">key_dialNo</string>
     <string name="key_smsMessage">key_smsMessage</string>
     <string name="title_dialNo">Emergency Contact Number</string>
-    <string name="default_dialNo">0770158330</string>
     <string name="title_name">Emergency SMS Message</string>
-    <string name="default_sms">Im in an emergency</string>
-    <string name="summary_developer">Kasun Thilina @ © Kasun Creations</string>
-    <string name="developer_linkedIN">https://www.linkedin.com/in/kasun-thilina</string>
+    <string name="developer_linkedIN"></string>
     <string name="summary_version">3.0</string>
+
+    <!--CHANGABLE VALUES-->
+    <string name="summary_developer">Kasun Thilina @ © Kasun Creations</string>
+    <string name="default_dialNo">0770158330</string>
+    <string name="default_sms">Im in an emergency</string>
 
     <!-- Strings related to GPS -->
     <string name="msg_driving">Driving Mode Activated</string>

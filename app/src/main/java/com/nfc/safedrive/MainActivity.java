@@ -199,6 +199,7 @@ public class MainActivity extends AppCompatActivity implements BottomNavigationV
                                             total.append(line);
                                         }
                                         String result = total.toString();
+                                        //String result = "true";
                                         Log.d(TAG, "JSON ResponseBody :" + result);
 
                                         if (result.equalsIgnoreCase("True"))
