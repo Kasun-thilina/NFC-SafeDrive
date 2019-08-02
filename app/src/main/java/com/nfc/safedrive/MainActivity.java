@@ -81,6 +81,7 @@ import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.List;
 import java.util.Locale;
 import java.util.Timer;
@@ -109,6 +110,7 @@ public class MainActivity extends AppCompatActivity implements BottomNavigationV
     private ImageView nfcIcon,RSPIcon;
     private ImageView gpsIcon;
     TextView txtSearching,txtSpeed;
+    List <Long> drivingTime = new ArrayList<>();   //contains the time taken
 
     /**URL For Raspberry PI Should go here*/
     final URL APIURL=new URL(" https://demo7381782.mockable.io/");
@@ -166,6 +168,7 @@ public class MainActivity extends AppCompatActivity implements BottomNavigationV
         useNFC= (preferences.getBoolean("pref_nfc",true));
         showSpeed= (preferences.getBoolean("pref_speed",true));
         Speech.init(this, getPackageName());
+        sharedPreferences.edit().putString("key_driveTime","0:0").commit();
     }
     /***
      * Raspberry Pi connection
@@ -182,8 +185,8 @@ public class MainActivity extends AppCompatActivity implements BottomNavigationV
                             @Override
                             public void run() {
                                 try {
-                                    HttpsURLConnection myConnection =
-                                            (HttpsURLConnection) APIURL.openConnection();
+                                    HttpURLConnection myConnection =
+                                            (HttpURLConnection) APIURL.openConnection();
                                     myConnection.setRequestProperty("Content-Type", "text/plain");
                                     if (myConnection.getResponseCode() == 200) {
                                         // Success
@@ -410,6 +413,48 @@ public class MainActivity extends AppCompatActivity implements BottomNavigationV
         txtSpeed=findViewById(R.id.txtSpeed);
         drivingMode=findViewById(R.id.txtDriving);
         currentSpeed = findViewById(R.id.valSpeed);
+
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    SharedPreferences pref = PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
+                   /* String status=pref.getString("driving", "stop");
+                    Log.d(TAG, "Driving Status : " + status);
+                    if(status.equalsIgnoreCase("stop"))
+                    {
+                        sharedPreferences.edit().putString("key_driveTime","0:0").commit();
+                        sharedPreferences.edit().putString("driving","running").commit();
+                        Log.d(TAG, "Driving Status : " + status);
+                    }*/
+                    String counter=pref.getString("key_driveTime", "0:0");
+                    String split[]=counter.split(":");
+                    int miniuts=Integer.parseInt(split[0]);
+                    int seconds=Integer.parseInt(split[1]);
+
+                    Integer count=(miniuts*60)+seconds;
+                    //Double count=Double.parseDouble(counter);
+                    while (speed>1)
+                    {
+                        Thread.sleep(1000);
+                        count++;
+
+                        miniuts=count/60;
+                        seconds=count%60;
+                        String finalVal=String.valueOf(miniuts)+":"+String.valueOf(seconds);
+                        Log.d(TAG, "Driving Time : " + finalVal);
+                        sharedPreferences.edit().putString("key_driveTime",finalVal).commit();
+                    }
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+        }).start();
+
+
+
+
+
         //drivingMode.setText(R.string.msg_notDriving);
        /* if (showSpeed) {
             drivingMode.setTextColor(Color.parseColor("#a5d6a7"));
@@ -769,6 +814,8 @@ public class MainActivity extends AppCompatActivity implements BottomNavigationV
     public void onDestroy(){
         super.onDestroy();
         stopService(new Intent(getBaseContext(), GPSService.class));
+        SharedPreferences.Editor prefsEditor = sharedPreferences.edit();
+        prefsEditor.putString("driving", "stop").commit();
         Speech.getInstance().shutdown();
         // prevent memory leaks when activity is destroyed
     }
@@ -909,6 +956,8 @@ public class MainActivity extends AppCompatActivity implements BottomNavigationV
                 }
                 else {
                     startActivity(dialer);
+                    SharedPreferences.Editor prefsEditor = sharedPreferences.edit();
+                    prefsEditor.putString("driving", "stop").commit();
                 }
             }
             else if (result.equalsIgnoreCase("Yes"))

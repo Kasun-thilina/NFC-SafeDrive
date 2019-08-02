@@ -12,6 +12,11 @@
             android:summary='@string/default_sms'
             android:title="@string/title_name"
             />
+        <Preference
+            android:summary="0:00"
+            android:key="key_driveTime"
+            android:title="Driving Time(Minutes:Seconds)"
+            />
         <SwitchPreference
             android:key="pref_nfc"
             android:title="Use NFC"

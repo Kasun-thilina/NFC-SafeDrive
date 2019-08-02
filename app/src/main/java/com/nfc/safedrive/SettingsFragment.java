@@ -59,6 +59,7 @@ public class SettingsFragment extends android.app.Fragment{
             // SMS Message Edit Change Listner
             bindPreferenceSummaryToValue(findPreference(getString(R.string.key_smsMessage)));
 
+            bindPreferenceSummaryToValue(findPreference("key_driveTime"));
         }
         }
 
